@@ -94,6 +94,9 @@ with st.sidebar:
         df_f = df[df["year"].isin(selected_years)].copy()
     else:
         df_f = df.copy()
+    if df_f.empty:
+        st.warning("No hay datos para los años seleccionados.")
+        st.stop()
 
     st.divider()
 
@@ -227,6 +230,9 @@ with tab2:
 )
 
     df_store = df_f[df_f["store_nbr"] == store_sel]
+    if df_store.empty:
+        st.info("No hay datos para esta tienda con los filtros actuales.")
+        st.stop()
 
     a, b, c = st.columns(3)
     a.metric("💰 Ventas totales", f"{df_store['sales'].sum():,.2f}")
@@ -271,6 +277,9 @@ with tab3:
 )
 
     df_state = df_f[df_f["state"] == state_sel]
+    if df_state.empty:
+        st.info("No hay datos para este estado con los filtros actuales.")
+        st.stop()
 
     st.divider()
 
@@ -417,6 +426,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
