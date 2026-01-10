@@ -297,16 +297,18 @@ with tab4:
     st.subheader("Insights extra para decisiones rápidas ⭐")
 
     st.markdown("##### Impacto de promociones: ventas con promoción vs sin promoción")
-    df_f["promo_flag"] = (df_f["onpromotion"].fillna(0) > 0).map({True: "En promoción", False: "Sin promoción"})
-    promo_compare = (
-    df_f.assign(
-        promo_flag=df_f["onpromotion"].fillna(0).gt(0)
-            .map({True: "En promoción", False: "Sin promoción"})
+    
+    tmp_promo = df_f.assign(
+        promo_flag=df_f["onpromotion"].fillna(0).gt(0).map(
+            {True: "En promoción", False: "Sin promoción"}
+        )
     )
-    .groupby("promo_flag", as_index=False)["sales"]
-    .sum()
-)
-
+    
+    promo_compare = (
+        tmp_promo.groupby("promo_flag", as_index=False)["sales"]
+        .sum()
+    )
+    
     fig = px.bar(
         promo_compare,
         x="promo_flag",
@@ -314,12 +316,8 @@ with tab4:
         title="Impacto de promociones: ventas con vs sin promoción",
         text_auto=".2s"
     )
-
-    fig.update_layout(
-        xaxis_title="Tipo de venta",
-        yaxis_title="Unidades vendidas",
-    )
-
+    
+    fig.update_layout(xaxis_title="Tipo de venta", yaxis_title="Sales")
     st.plotly_chart(fig, width="stretch")
 
     st.divider()
@@ -365,6 +363,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
