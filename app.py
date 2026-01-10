@@ -18,9 +18,21 @@ st.set_page_config(
 st.title("📊 Dashboard de Ventas — Cierre de Año")
 st.caption("Visión global + análisis por tienda y estado")
 
+# ----------------------------
+# HELPERS
+# ----------------------------
+def _safe_info_missing(cols):
+    st.info("Faltan columnas necesarias: " + ", ".join(cols))
+
+def _safe_plotly(fig):
+    try:
+        st.plotly_chart(fig, width="stretch")
+    except Exception:
+        st.error("⚠️ Error renderizando el gráfico (evitamos que la app se caiga).")
+        st.code(traceback.format_exc())
 
 # ----------------------------
-# CARGA + NORMALIZACIÓN (CACHE)
+# LOAD + NORMALIZE (CACHE)
 # ----------------------------
 @st.cache_data(ttl=24*3600, show_spinner=True)
 def load_data():
@@ -34,32 +46,46 @@ def load_data():
     if r.content[:1] == b"<":
         raise ValueError("SharePoint devolvió HTML (redirect/login), no un parquet.")
 
-    df = pd.read_parquet(BytesIO(r.content))
+    # ⚠️ Si tu parquet no contiene alguna de estas columnas, el motor puede fallar.
+    # Si te fallase, quita 'columns=...' y deja que lea todo.
+    needed_cols = [
+        "date", "sales", "onpromotion", "transactions",
+        "store_nbr", "family", "state", "holiday_type",
+        "year", "month", "week", "day_of_week",
+    ]
 
-    # Numéricos (reduce RAM)
+    df = pd.read_parquet(BytesIO(r.content), columns=needed_cols)
+
+    # ----- date -----
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # ✅ Si faltan columnas temporales, créalas desde date (1 vez, cacheado)
+    if "date" in df.columns and df["date"].notna().any():
+        if "year" not in df.columns:
+            df["year"] = df["date"].dt.year
+        if "month" not in df.columns:
+            df["month"] = df["date"].dt.month
+        if "week" not in df.columns:
+            df["week"] = df["date"].dt.isocalendar().week.astype("int64")
+        if "day_of_week" not in df.columns:
+            df["day_of_week"] = df["date"].dt.dayofweek  # 0=Lun ... 6=Dom
+
+    # ----- numerics (reduce RAM) -----
     for col in ["sales", "onpromotion", "transactions"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("float32").fillna(0)
 
-    # Fechas
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-
-    # Temporales
-    for col in ["year", "month", "week", "day_of_week"]:
+    for col in ["year", "month", "week", "day_of_week", "store_nbr"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int16")
 
-    # store_nbr
-    if "store_nbr" in df.columns:
-        df["store_nbr"] = pd.to_numeric(df["store_nbr"], errors="coerce").astype("Int16")
-
-    # Categóricas que suelen ir bien como category
+    # ----- categoricals (solo seguras) -----
     for col in ["state", "family"]:
         if col in df.columns:
             df[col] = df[col].astype("string").fillna("NA").astype("category")
 
-    # holiday_type: mejor string (evita líos de categorías nuevas en fillna)
+    # holiday_type: string (evita problemas de categorías nuevas en fillna)
     if "holiday_type" in df.columns:
         df["holiday_type"] = df["holiday_type"].astype("string")
 
@@ -79,24 +105,20 @@ if df.empty:
 
 
 # ----------------------------
-# SIDEBAR (filtros globales + navegación)
+# SIDEBAR: filtros + diagnóstico
 # ----------------------------
 with st.sidebar:
-    st.header("Navegación")
-    page = st.radio(
-        "Sección",
-        ["1) Global", "2) Por tienda", "3) Por estado", "4) Insights extra ⭐"],
-        index=0
-    )
-
-    st.divider()
     st.header("Filtros globales")
+
+    # Diagnóstico RAM (df completo)
+    ram_mb = df.memory_usage(deep=True).sum() / 1e6
+    st.caption(f"RAM df (aprox): {ram_mb:,.1f} MB")
+    st.caption(f"Filas df: {len(df):,}")
 
     years = sorted(df["year"].dropna().astype(int).unique().tolist()) if "year" in df.columns else []
     selected_years = st.multiselect("Años", years, default=years, key="years_sel")
 
     if selected_years and "year" in df.columns:
-        # NO copy gigante: solo vista filtrada
         df_f = df.loc[df["year"].isin(selected_years)]
     else:
         df_f = df
@@ -104,11 +126,22 @@ with st.sidebar:
     st.divider()
     st.caption(f"Filas con filtros: {len(df_f):,}")
 
+    # Selector de sección (estilo tipo pestañas)
+    st.divider()
+    st.header("Sección")
+
+
+# Selector arriba (NO en sidebar)
+section = st.segmented_control(
+    "Sección",
+    options=["1) Global", "2) Por tienda", "3) Por estado", "4) Insights extra ⭐"],
+    default="1) Global"
+)
 
 # ============================================================
 # 1) GLOBAL
 # ============================================================
-if page == "1) Global":
+if section == "1) Global":
     st.subheader("Visión global del periodo")
 
     c1, c2, c3, c4 = st.columns(4)
@@ -140,9 +173,9 @@ if page == "1) Global":
             else:
                 fig = px.bar(top_products, x="sales", y="family", orientation="h", text_auto=".2s")
                 fig.update_layout(height=380, margin=dict(l=10, r=10, t=20, b=10))
-                st.plotly_chart(fig, width="stretch")
+                _safe_plotly(fig)
         else:
-            st.info("Faltan columnas 'family' y/o 'sales'.")
+            _safe_info_missing(["family", "sales"])
 
     with col_right:
         st.markdown("#### 🏪 Distribución de ventas por tienda")
@@ -156,9 +189,9 @@ if page == "1) Global":
                 st.info("No hay datos para la distribución.")
             else:
                 fig = px.box(store_sales, y="sales", title="Distribución de ventas por tienda")
-                st.plotly_chart(fig, width="stretch")
+                _safe_plotly(fig)
         else:
-            st.info("Faltan columnas 'store_nbr' y/o 'sales'.")
+            _safe_info_missing(["store_nbr", "sales"])
 
     st.markdown("#### 🔝 Top 10 tiendas con ventas en productos en promoción")
     if {"store_nbr", "sales", "onpromotion"}.issubset(df_f.columns) and len(df_f):
@@ -182,9 +215,9 @@ if page == "1) Global":
             )
             fig.update_xaxes(type="category")
             fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
-            st.plotly_chart(fig, width="stretch")
+            _safe_plotly(fig)
     else:
-        st.info("Faltan columnas para el análisis de promoción.")
+        _safe_info_missing(["store_nbr", "sales", "onpromotion"])
 
     st.divider()
 
@@ -203,9 +236,9 @@ if page == "1) Global":
             else:
                 fig = px.bar(dow_mean, x="day_of_week", y="sales", text_auto=".2s")
                 fig.update_layout(height=320, margin=dict(l=10, r=10, t=20, b=10))
-                st.plotly_chart(fig, width="stretch")
+                _safe_plotly(fig)
         else:
-            st.info("Faltan columnas 'day_of_week' y/o 'sales'.")
+            _safe_info_missing(["day_of_week", "sales"])
 
     with cB:
         st.markdown("#### 📆 Ventas medias por semana del año")
@@ -220,9 +253,9 @@ if page == "1) Global":
             else:
                 fig = px.line(week_mean, x="week", y="sales")
                 fig.update_layout(height=320, margin=dict(l=10, r=10, t=20, b=10))
-                st.plotly_chart(fig, width="stretch")
+                _safe_plotly(fig)
         else:
-            st.info("Faltan columnas 'week' y/o 'sales'.")
+            _safe_info_missing(["week", "sales"])
 
     with cC:
         st.markdown("#### 🗓️ Ventas medias por mes")
@@ -237,15 +270,15 @@ if page == "1) Global":
             else:
                 fig = px.line(month_mean, x="month", y="sales", markers=True)
                 fig.update_layout(height=320, margin=dict(l=10, r=10, t=20, b=10))
-                st.plotly_chart(fig, width="stretch")
+                _safe_plotly(fig)
         else:
-            st.info("Faltan columnas 'month' y/o 'sales'.")
+            _safe_info_missing(["month", "sales"])
 
 
 # ============================================================
 # 2) POR TIENDA
 # ============================================================
-elif page == "2) Por tienda":
+elif section == "2) Por tienda":
     st.subheader("Análisis por tienda (store_nbr)")
 
     if df_f.empty or "store_nbr" not in df_f.columns:
@@ -280,9 +313,9 @@ elif page == "2) Por tienda":
                     else:
                         fig = px.bar(by_year, x="year", y="sales", text_auto=".2s")
                         fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
-                        st.plotly_chart(fig, width="stretch")
+                        _safe_plotly(fig)
                 else:
-                    st.info("Faltan columnas 'year' y/o 'sales'.")
+                    _safe_info_missing(["year", "sales"])
 
             with col2:
                 prod_count = df_store["family"].nunique() if "family" in df_store.columns else 0
@@ -298,7 +331,7 @@ elif page == "2) Por tienda":
 # ============================================================
 # 3) POR ESTADO
 # ============================================================
-elif page == "3) Por estado":
+elif section == "3) Por estado":
     st.subheader("Análisis por estado (state)")
 
     if df_f.empty or "state" not in df_f.columns:
@@ -328,7 +361,7 @@ elif page == "3) Por estado":
                     else:
                         fig = px.bar(tx_year, x="year", y="transactions", text_auto=".2s")
                         fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
-                        st.plotly_chart(fig, width="stretch")
+                        _safe_plotly(fig)
                 else:
                     st.info("No existe 'transactions' y/o 'year'.")
 
@@ -351,9 +384,9 @@ elif page == "3) Por estado":
                         fig = px.bar(rank_stores, x="sales", y="store_cat", orientation="h", text_auto=".2s")
                         fig.update_yaxes(type="category", title="Tienda")
                         fig.update_xaxes(title="Ventas")
-                        st.plotly_chart(fig, width="stretch")
+                        _safe_plotly(fig)
                 else:
-                    st.info("Faltan columnas 'store_nbr' y/o 'sales'.")
+                    _safe_info_missing(["store_nbr", "sales"])
 
             st.markdown("#### Producto más vendido (en este estado)")
             if {"family", "sales"}.issubset(df_state.columns):
@@ -368,7 +401,7 @@ elif page == "3) Por estado":
                 else:
                     st.info("No hay datos suficientes para calcular el producto más vendido.")
             else:
-                st.info("Faltan columnas 'family' y/o 'sales'.")
+                _safe_info_missing(["family", "sales"])
 
 
 # ============================================================
@@ -388,11 +421,16 @@ else:
         if promo_compare.empty:
             st.info("No hay datos para comparar.")
         else:
-            fig = px.bar(promo_compare, x="promo_flag", y="sales", text_auto=".2s",
-                         title="Impacto de promociones: ventas con vs sin promoción")
-            st.plotly_chart(fig, width="stretch")
+            fig = px.bar(
+                promo_compare,
+                x="promo_flag",
+                y="sales",
+                title="Impacto de promociones: ventas con vs sin promoción",
+                text_auto=".2s"
+            )
+            _safe_plotly(fig)
     else:
-        st.info("Faltan columnas para el análisis de promociones.")
+        _safe_info_missing(["sales", "onpromotion"])
 
     st.divider()
 
@@ -407,7 +445,7 @@ else:
         c1.metric("Ventas Top 10 productos", f"{top10_sum:,.2f}")
         c2.metric("% sobre ventas totales", f"{share:,.2f}%")
     else:
-        st.info("Faltan columnas para el análisis de top productos.")
+        _safe_info_missing(["family", "sales"])
 
     st.divider()
 
@@ -432,9 +470,10 @@ else:
                 title="Ventas medias diarias: festivo vs no festivo",
                 text_auto=".2s"
             )
-            st.plotly_chart(fig, width="stretch")
+            _safe_plotly(fig)
     else:
-        st.info("Faltan columnas para el análisis de festivos.")
+        _safe_info_missing(["sales", "holiday_type"]))
+
 
 
 
