@@ -221,7 +221,7 @@ with tab2:
     stores = sorted(df_f["store_nbr"].dropna().unique())
     store_sel = st.selectbox("Selecciona una tienda", stores, index=0)
 
-    df_store = df_f[df_f["store_nbr"] == store_sel].copy()
+    df_store = df_f[df_f["store_nbr"] == store_sel]
 
     a, b, c = st.columns(3)
     a.metric("💰 Ventas totales", f"{df_store['sales'].sum():,.2f}")
@@ -260,7 +260,7 @@ with tab3:
     states = sorted(df_f["state"].dropna().unique())
     state_sel = st.selectbox("Selecciona un estado", states, index=0)
 
-    df_state = df_f[df_f["state"] == state_sel].copy()
+    df_state = df_f[df_f["state"] == state_sel]
 
     st.divider()
 
@@ -407,6 +407,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
