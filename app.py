@@ -43,6 +43,7 @@ def load_data():
     df2 = read_csv_from_sharepoint(url_2)
 
     df = pd.concat([df1, df2], ignore_index=True)
+    df["holiday_type"] = df["holiday_type"].astype(str)
     return df
 
 df = load_data()
@@ -363,4 +364,5 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
