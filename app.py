@@ -70,8 +70,8 @@ def load_data():
 
     return df
 def reset_store():
-    # Resetea la selección de tienda cuando cambian filtros globales
     st.session_state.pop("store_sel", None)
+    st.session_state.pop("state_sel", None)
 
 df = load_data()
 
@@ -219,7 +219,7 @@ with tab2:
     st.subheader("Análisis por tienda (store_nbr)")
 
     stores = sorted(df_f["store_nbr"].dropna().unique())
-    store_sel = st.selectbox("Selecciona una tienda", stores, index=0)
+    store_sel = st.selectbox("Selecciona una tienda", stores)
 
     df_store = df_f[df_f["store_nbr"] == store_sel]
 
@@ -258,7 +258,7 @@ with tab3:
     st.subheader("Análisis por estado (state)")
 
     states = sorted(df_f["state"].dropna().unique())
-    state_sel = st.selectbox("Selecciona un estado", states, index=0)
+    state_sel = st.selectbox("Selecciona un estado", states)
 
     df_state = df_f[df_f["state"] == state_sel]
 
@@ -407,6 +407,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
