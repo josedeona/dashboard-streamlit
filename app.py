@@ -46,21 +46,14 @@ def load_data():
     if r.content[:1] == b"<":
         raise ValueError("SharePoint devolvió HTML (redirect/login), no un parquet.")
 
-    # ⚠️ Si tu parquet no contiene alguna de estas columnas, el motor puede fallar.
-    # Si te fallase, quita 'columns=...' y deja que lea todo.
-    needed_cols = [
-        "date", "sales", "onpromotion", "transactions",
-        "store_nbr", "family", "state", "holiday_type",
-        "year", "month", "week", "day_of_week",
-    ]
-
-    df = pd.read_parquet(BytesIO(r.content), columns=needed_cols)
+    # Leemos TODO para evitar errores si alguna columna no existe en el parquet
+    df = pd.read_parquet(BytesIO(r.content))
 
     # ----- date -----
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
-    # ✅ Si faltan columnas temporales, créalas desde date (1 vez, cacheado)
+    # ✅ Si faltan columnas temporales, créalas desde date (cacheado)
     if "date" in df.columns and df["date"].notna().any():
         if "year" not in df.columns:
             df["year"] = df["date"].dt.year
@@ -103,7 +96,6 @@ if df.empty:
     st.error("⚠️ El DataFrame está vacío tras cargar el parquet.")
     st.stop()
 
-
 # ----------------------------
 # SIDEBAR: filtros + diagnóstico
 # ----------------------------
@@ -126,12 +118,7 @@ with st.sidebar:
     st.divider()
     st.caption(f"Filas con filtros: {len(df_f):,}")
 
-    # Selector de sección (estilo tipo pestañas)
-    st.divider()
-    st.header("Sección")
-
-
-# Selector arriba (NO en sidebar)
+# Selector arriba (estilo pestañas)
 section = st.segmented_control(
     "Sección",
     options=["1) Global", "2) Por tienda", "3) Por estado", "4) Insights extra ⭐"],
@@ -274,7 +261,6 @@ if section == "1) Global":
         else:
             _safe_info_missing(["month", "sales"])
 
-
 # ============================================================
 # 2) POR TIENDA
 # ============================================================
@@ -326,7 +312,6 @@ elif section == "2) Por tienda":
                 )
                 st.metric("🧺 Productos distintos vendidos", f"{prod_count:,}")
                 st.metric("🏷️ Productos distintos vendidos en promoción", f"{prod_promo_count:,}")
-
 
 # ============================================================
 # 3) POR ESTADO
@@ -403,7 +388,6 @@ elif section == "3) Por estado":
             else:
                 _safe_info_missing(["family", "sales"])
 
-
 # ============================================================
 # 4) INSIGHTS EXTRA
 # ============================================================
@@ -472,7 +456,9 @@ else:
             )
             _safe_plotly(fig)
     else:
-        _safe_info_missing(["sales", "holiday_type"]))
+        _safe_info_missing(["sales", "holiday_type"])
+
+
 
 
 
