@@ -42,26 +42,6 @@ def load_data():
     return df
 
 df = load_data()
-# --- Limpieza de tipos (evita petadas al cambiar de tienda) ---
-for col in ["sales", "onpromotion", "transactions"]:
-    if col in df.columns:
-        df[col] = pd.to_numeric(df[col], errors="coerce")
-
-if "sales" in df.columns:
-    df["sales"] = df["sales"].fillna(0)
-
-if "onpromotion" in df.columns:
-    df["onpromotion"] = df["onpromotion"].fillna(0)
-
-if "transactions" in df.columns:
-    df["transactions"] = df["transactions"].fillna(0)
-
-if df.empty:
-    st.error("⚠️ El DataFrame está vacío tras cargar el parquet.")
-    st.stop()
-# Asegurar tipos esperados
-if "date" in df.columns:
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
 # ----------------------------
 # SIDEBAR (filtros globales opcionales)
@@ -388,5 +368,6 @@ with tab4:
     )
     
     st.plotly_chart(fig, width="stretch")
+
 
 
