@@ -339,19 +339,28 @@ with tab4:
 
     st.markdown("### 📅 Impacto de festivos en ventas")
 
-    # 1) Creamos bandera festivo / no festivo
-    tmp = df_f.copy()
-    tmp["is_holiday"] = tmp["holiday_type"].fillna("No holiday").ne("No holiday")
-
+    # 1) Copia mínima (no tocamos df_f)
+    tmp_holiday = df_f[["sales", "holiday_type"]].copy()
+    
+    # 2) Aseguramos string limpio
+    tmp_holiday["holiday_type"] = (
+        tmp_holiday["holiday_type"]
+        .fillna("No festivo")
+        .astype(str)
+    )
+    
+    # 3) Creamos etiqueta FINAL (solo strings, nunca boolean)
+    tmp_holiday["tipo_dia"] = tmp_holiday["holiday_type"].apply(
+        lambda x: "Festivo" if x.lower() not in ["no holiday", "no festivo", "none"] else "No festivo"
+    )
+    
+    # 4) Agregamos
     holiday_summary = (
-        tmp.groupby("is_holiday", as_index=False)["sales"]
+        tmp_holiday.groupby("tipo_dia", as_index=False)["sales"]
         .mean()
     )
     
-    holiday_summary["tipo_dia"] = holiday_summary["is_holiday"].map(
-        {True: "Festivo", False: "No festivo"}
-    )
-    
+    # 5) Gráfico
     fig = px.bar(
         holiday_summary,
         x="tipo_dia",
@@ -359,11 +368,11 @@ with tab4:
         title="Ventas medias diarias: festivo vs no festivo",
         text_auto=".2s"
     )
-
+    
     fig.update_layout(
         xaxis_title="Tipo de día",
-        yaxis_title="Media diaria (sales)"
+        yaxis_title="Ventas medias (sales)"
     )
-
-
+    
     st.plotly_chart(fig, width="stretch")
+
