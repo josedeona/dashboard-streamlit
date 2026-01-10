@@ -290,17 +290,24 @@ with tab4:
 
     st.markdown("##### Impacto de promociones: ventas con promoción vs sin promoción")
     
-    tmp_promo = df_f.assign(
-        promo_flag=df_f["onpromotion"].fillna(0).gt(0).map(
-            {True: "En promoción", False: "Sin promoción"}
-        )
+    # 1) Creamos una copia "limpia" solo para este análisis (NO tocamos df_f)
+    tmp_promo = df_f[["sales", "onpromotion"]].copy()
+    
+    # 2) Aseguramos que onpromotion sea numérico (por si viene como texto)
+    tmp_promo["onpromotion"] = pd.to_numeric(tmp_promo["onpromotion"], errors="coerce").fillna(0)
+    
+    # 3) Etiquetamos promo / no promo
+    tmp_promo["promo_flag"] = tmp_promo["onpromotion"].gt(0).map(
+        {True: "En promoción", False: "Sin promoción"}
     )
     
+    # 4) Agregamos
     promo_compare = (
         tmp_promo.groupby("promo_flag", as_index=False)["sales"]
         .sum()
     )
     
+    # 5) Gráfico
     fig = px.bar(
         promo_compare,
         x="promo_flag",
@@ -309,7 +316,11 @@ with tab4:
         text_auto=".2s"
     )
     
-    fig.update_layout(xaxis_title="Tipo de venta", yaxis_title="Sales")
+    fig.update_layout(
+        xaxis_title="Tipo de venta",
+        yaxis_title="Ventas (sales)"
+    )
+    
     st.plotly_chart(fig, width="stretch")
 
     st.divider()
@@ -353,5 +364,6 @@ with tab4:
         xaxis_title="Tipo de día",
         yaxis_title="Media diaria (sales)"
     )
+
 
     st.plotly_chart(fig, width="stretch")
