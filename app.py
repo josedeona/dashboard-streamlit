@@ -70,7 +70,7 @@ def reset_store():
     st.session_state.pop("store_sel", None)
     st.session_state.pop("state_sel", None)
 
-if not DATA_FILE.exists():
+if not CACHE_FILE.exists():
     download_and_prepare_data()
 
 df = load_data()
@@ -417,6 +417,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
