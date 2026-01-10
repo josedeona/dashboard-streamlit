@@ -33,11 +33,37 @@ def load_data():
 
     df = pd.read_parquet(BytesIO(r.content))
 
-    # Limpieza mínima segura
-    if "holiday_type" in df.columns:
-        df["holiday_type"] = df["holiday_type"].astype(str)
+    # ======================================================
+    # NORMALIZACIÓN (SE EJECUTA SOLO UNA VEZ POR CACHE)
+    # ======================================================
+
+    # ---------- Numéricos (usar float32 / Int16 reduce RAM) ----------
+    for col in ["sales", "onpromotion", "transactions"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("float32").fillna(0)
+
+    # ---------- Fechas ----------
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # ---------- Temporales ----------
+    for col in ["year", "month", "week", "day_of_week"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int16")
+
+    # ---------- Identificadores ----------
+    if "store_nbr" in df.columns:
+        df["store_nbr"] = pd.to_numeric(df["store_nbr"], errors="coerce").astype("Int16")
+
+    # ---------- Categóricas (MUY importante para memoria) ----------
+    for col in ["state", "family", "holiday_type"]:
+        if col in df.columns:
+            df[col] = (
+                df[col]
+                .astype("string")
+                .fillna("NA")
+                .astype("category")
+            )
 
     return df
 def reset_store():
@@ -378,6 +404,7 @@ with tab4:
     )
     
     st.plotly_chart(fig, width="stretch")
+
 
 
 
