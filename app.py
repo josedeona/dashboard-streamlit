@@ -31,8 +31,7 @@ def read_csv_from_sharepoint(url, usecols=None):
     return pd.read_csv(
         BytesIO(r.content),
         low_memory=False,
-        usecols=usecols,
-        dtype_backend="pyarrow"  # 👈 reduce RAM
+        usecols=usecols
     )
 @st.cache_data
 def load_data():
@@ -346,13 +345,15 @@ with tab4:
     holiday_summary = (
         tmp.groupby("is_holiday", as_index=False)["sales"]
         .mean()
-        .replace({"is_holiday": {True: "Festivo", False: "No festivo"}})
     )
-
-    # 2) Gráfico
+    
+    holiday_summary["tipo_dia"] = holiday_summary["is_holiday"].map(
+        {True: "Festivo", False: "No festivo"}
+    )
+    
     fig = px.bar(
         holiday_summary,
-        x="is_holiday",
+        x="tipo_dia",
         y="sales",
         title="Ventas medias diarias: festivo vs no festivo",
         text_auto=".2s"
@@ -364,6 +365,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
