@@ -59,13 +59,13 @@ def download_and_prepare_data() -> None:
         df["holiday_type"] = df["holiday_type"].astype("string")
 
     # --- Guardado ---
-    df.to_parquet(DATA_FILE, index=False)
+    df.to_parquet(CACHE_FILE, index=False)
 @st.cache_data(ttl=24*3600)
 def load_data() -> pd.DataFrame:
     """
     Lee el parquet normalizado ya existente.
     """
-    return pd.read_parquet(DATA_FILE)
+    return pd.read_parquet(CACHE_FILE)
 def reset_store():
     st.session_state.pop("store_sel", None)
     st.session_state.pop("state_sel", None)
@@ -417,6 +417,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
