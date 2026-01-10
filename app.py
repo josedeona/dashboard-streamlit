@@ -56,7 +56,6 @@ def load_data():
         df["store_nbr"] = pd.to_numeric(df["store_nbr"], errors="coerce").astype("Int16")
 
     # ---------- Categóricas (MUY importante para memoria) ----------
-    for col in ["state", "family", "holiday_type"]:
     for col in ["state", "family"]:
         if col in df.columns:
             df[col] = (
@@ -408,6 +407,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
