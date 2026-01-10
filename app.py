@@ -66,10 +66,7 @@ def load_data() -> pd.DataFrame:
     Lee el parquet normalizado ya existente.
     """
     return pd.read_parquet(CACHE_FILE)
-def reset_store():
-    st.session_state.pop("store_sel", None)
-    st.session_state.pop("state_sel", None)
-
+    
 if not CACHE_FILE.exists():
     download_and_prepare_data()
 
@@ -86,7 +83,6 @@ with st.sidebar:
         "Años",
         years,
         default=years,
-        on_change=reset_store,
         key="years_sel"
     )
 
@@ -222,6 +218,8 @@ with tab2:
     st.subheader("Análisis por tienda (store_nbr)")
 
     stores = sorted(df_f["store_nbr"].dropna().unique())
+    if "store_sel" in st.session_state and st.session_state.store_sel not in stores:
+        del st.session_state.store_sel
     store_sel = st.selectbox(
     "Selecciona una tienda",
     stores,
@@ -269,6 +267,8 @@ with tab3:
     st.subheader("Análisis por estado (state)")
 
     states = sorted(df_f["state"].dropna().unique())
+    if "state_sel" in st.session_state and st.session_state.state_sel not in states:
+        del st.session_state.state_sel
     state_sel = st.selectbox(
     "Selecciona un estado",
     states,
@@ -426,6 +426,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
