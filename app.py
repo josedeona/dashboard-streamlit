@@ -47,7 +47,7 @@ def load_data():
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     # ---------- Temporales ----------
-    for col in ["year", "month", "week", "day_of_week"]:
+    for col in ["year", "month", "week"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int16")
 
@@ -407,6 +407,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
