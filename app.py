@@ -40,6 +40,9 @@ def load_data():
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     return df
+def reset_store():
+    # Resetea la selección de tienda cuando cambian filtros globales
+    st.session_state.pop("store_sel", None)
 
 df = load_data()
 
@@ -49,7 +52,14 @@ df = load_data()
 with st.sidebar:
     st.header("Filtros globales")
     years = sorted(df["year"].dropna().unique()) if "year" in df.columns else []
-    selected_years = st.multiselect("Años", years, default=years)
+
+    selected_years = st.multiselect(
+        "Años",
+        years,
+        default=years,
+        on_change=reset_store,
+        key="years_sel"
+    )
 
     if selected_years:
         df_f = df[df["year"].isin(selected_years)].copy()
@@ -368,6 +378,7 @@ with tab4:
     )
     
     st.plotly_chart(fig, width="stretch")
+
 
 
 
