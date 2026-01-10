@@ -32,7 +32,7 @@ def read_csv_from_sharepoint(url, usecols=None):
         BytesIO(r.content),
         low_memory=False,
         usecols=usecols,
-        dtype_backend="pyarrow",  # 👈 reduce RAM
+        dtype_backend="pyarrow"  # 👈 reduce RAM
     )
 @st.cache_data
 def load_data():
@@ -364,5 +364,6 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
