@@ -20,59 +20,57 @@ st.caption("Visión global + análisis por tienda y estado")
 # ----------------------------
 # CARGA DE DATOS (PARQUET)
 # ----------------------------
+CACHE_FILE = Path("ventas_normalizadas.parquet")
 @st.cache_data(ttl=24*3600, show_spinner=True)
-def load_data():
-    url_parquet = "https://upcomillas-my.sharepoint.com/:u:/g/personal/202408980_alu_comillas_edu/IQCa_6_CXHL6TKZs8lSa6SwWAeCY5dTnHOWTpQ7gAoQ_GCM?download=1"
+def download_and_prepare_data() -> None:
+    """
+    Descarga el parquet original, normaliza los datos
+    y guarda un parquet limpio en disco.
+    """
+    url = "https://upcomillas-my.sharepoint.com/:u:/g/personal/202408980_alu_comillas_edu/IQCa_6_CXHL6TKZs8lSa6SwWAeCY5dTnHOWTpQ7gAoQ_GCM?download=1"
 
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "*/*",
-    }
-    r = requests.get(url_parquet, headers=headers, allow_redirects=True, timeout=300)
+    headers = {"User-Agent": "Mozilla/5.0", "Accept": "*/*"}
+    r = requests.get(url, headers=headers, timeout=300)
     r.raise_for_status()
 
     df = pd.read_parquet(BytesIO(r.content))
 
-    # ======================================================
-    # NORMALIZACIÓN (SE EJECUTA SOLO UNA VEZ POR CACHE)
-    # ======================================================
-
-    # ---------- Numéricos (usar float32 / Int16 reduce RAM) ----------
-    for col in ["sales", "transactions"]:
+    # --- Normalización ---
+    for col in ["sales", "onpromotion", "transactions"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("float32").fillna(0)
 
-    # ---------- Fechas ----------
     if "date" in df.columns:
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
-    # ---------- Temporales ----------
-    for col in ["month"]:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int8")
-
-    # ---------- Identificadores ----------
-    for col in ["store_nbr", "onpromotion", "year", "week"]:
+    for col in ["year", "month", "week"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int16")
 
-    # ---------- Categóricas (MUY importante para memoria) ----------
+    if "store_nbr" in df.columns:
+        df["store_nbr"] = pd.to_numeric(df["store_nbr"], errors="coerce").astype("Int16")
+
     for col in ["state", "family"]:
         if col in df.columns:
-            df[col] = (
-                df[col]
-                .astype("string")
-                .fillna("NA")
-                .astype("category")
-            )
-    # holiday_type mejor como string (evita errores de categorías nuevas)
+            df[col] = df[col].astype("string").fillna("NA").astype("category")
+
     if "holiday_type" in df.columns:
         df["holiday_type"] = df["holiday_type"].astype("string")
 
-    return df
+    # --- Guardado ---
+    df.to_parquet(DATA_FILE, index=False)
+@st.cache_data(ttl=24*3600)
+def load_data() -> pd.DataFrame:
+    """
+    Lee el parquet normalizado ya existente.
+    """
+    return pd.read_parquet(DATA_FILE)
 def reset_store():
     st.session_state.pop("store_sel", None)
     st.session_state.pop("state_sel", None)
+
+if not DATA_FILE.exists():
+    download_and_prepare_data()
 
 df = load_data()
 
@@ -418,6 +416,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
