@@ -21,13 +21,19 @@ st.caption("Visión global + análisis por tienda y estado")
 # CARGA DE DATOS
 # ----------------------------
 
-def read_csv_from_sharepoint(url):
+def read_csv_from_sharepoint(url, usecols=None):
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "text/csv,application/octet-stream,*/*",
     }
-    response = requests.get(url, headers=headers, allow_redirects=True, timeout=60)
-    response.raise_for_status()
-    return pd.read_csv(BytesIO(response.content), low_memory=False)
+    r = requests.get(url, headers=headers, allow_redirects=True, timeout=180)
+    r.raise_for_status()
+    return pd.read_csv(
+        BytesIO(r.content),
+        low_memory=False,
+        usecols=usecols,
+        dtype_backend="pyarrow",  # 👈 reduce RAM
+    )
 @st.cache_data
 def load_data():
     # 👉 Si ya lo tienes cargado en tu notebook/script, puedes ignorar esto y asignar df directamente.
@@ -106,7 +112,7 @@ with tab1:
         )
         fig = px.bar(top_products, x="sales", y="family", orientation="h", text_auto=".2s" )
         fig.update_layout(height=380, margin=dict(l=10, r=10, t=20, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col_right:
         st.markdown("#### 🏪 Distribución de ventas por tienda")
@@ -120,7 +126,7 @@ with tab1:
             y="sales",
             title="Distribución de ventas por tienda"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.markdown("#### 🔝 Top 10 tiendas con ventas en productos en promoción")
     promo_df = df_f[df_f["onpromotion"].fillna(0) > 0].copy()
@@ -141,7 +147,7 @@ with tab1:
     )
     fig.update_xaxes(type="category")
     fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.divider()
 
@@ -157,7 +163,7 @@ with tab1:
         )
         fig = px.bar(dow_mean, x="day_of_week", y="sales", text_auto=".2s" )
         fig.update_layout(height=320, margin=dict(l=10, r=10, t=20, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with cB:
         st.markdown("#### 📆 Ventas medias por semana del año")
@@ -168,7 +174,7 @@ with tab1:
         )
         fig = px.line(week_mean, x="week", y="sales")
         fig.update_layout(height=320, margin=dict(l=10, r=10, t=20, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with cC:
         st.markdown("#### 🗓️ Ventas medias por mes")
@@ -179,7 +185,7 @@ with tab1:
         )
         fig = px.line(month_mean, x="month", y="sales", markers=True)
         fig.update_layout(height=320, margin=dict(l=10, r=10, t=20, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 
 # ============================================================
@@ -211,7 +217,7 @@ with tab2:
         )
         fig = px.bar(by_year, x="year", y="sales", text_auto=".2s" )
         fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     with col2:
 
@@ -246,7 +252,7 @@ with tab3:
             )
             fig = px.bar(tx_year, x="year", y="transactions", text_auto=".2s" )
             fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         else:
             st.info("No existe la columna 'transactions' en el dataset.")
 
@@ -269,7 +275,7 @@ with tab3:
         fig = px.bar(rank_stores, x="sales", y="store_cat", orientation="h", text_auto=".2s" )
         fig.update_yaxes(type="category", title="Tienda")
         fig.update_xaxes(title="Ventas")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
     st.markdown("#### Producto más vendido (en este estado)")
     top_product_state = (
@@ -314,7 +320,7 @@ with tab4:
         yaxis_title="Unidades vendidas",
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.divider()
 
@@ -356,4 +362,5 @@ with tab4:
         yaxis_title="Media diaria (sales)"
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
+
