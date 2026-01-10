@@ -18,42 +18,34 @@ st.title("📊 Dashboard de Ventas — Cierre de Año")
 st.caption("Visión global + análisis por tienda y estado")
 
 # ----------------------------
-# CARGA DE DATOS
+# CARGA DE DATOS (PARQUET)
 # ----------------------------
+@st.cache_data(ttl=24*3600, show_spinner=True)
+def load_data():
+    url_parquet = "https://upcomillas-my.sharepoint.com/:u:/g/personal/202408980_alu_comillas_edu/IQCa_6_CXHL6TKZs8lSa6SwWAeCY5dTnHOWTpQ7gAoQ_GCM?download=1"
 
-def read_csv_from_sharepoint(url, usecols=None):
     headers = {
         "User-Agent": "Mozilla/5.0",
-        "Accept": "text/csv,application/octet-stream,*/*",
+        "Accept": "*/*",
     }
-    r = requests.get(url, headers=headers, allow_redirects=True, timeout=180)
+    r = requests.get(url_parquet, headers=headers, allow_redirects=True, timeout=300)
     r.raise_for_status()
-    return pd.read_csv(
-        BytesIO(r.content),
-        low_memory=False,
-        usecols=usecols
-    )
-@st.cache_data
-def load_data():
-    # 👉 Si ya lo tienes cargado en tu notebook/script, puedes ignorar esto y asignar df directamente.
-    url_1 = "https://upcomillas-my.sharepoint.com/:x:/g/personal/202408980_alu_comillas_edu/IQC_RUnSNtBtSoLag-Jbmd2WAVN5uSQZHRk6AYVXyWlkPiM?download=1"
-    url_2 = "https://upcomillas-my.sharepoint.com/:x:/g/personal/202408980_alu_comillas_edu/IQCyEV6FfDZ2S4JM0exAF6GfAXHjciOC5aZ-wFoZzAhaEbw?download=1"
-    df1 = read_csv_from_sharepoint(url_1)
-    df2 = read_csv_from_sharepoint(url_2)
 
-    df = pd.concat([df1, df2], ignore_index=True)
-    df["holiday_type"] = df["holiday_type"].astype(str)
+    df = pd.read_parquet(BytesIO(r.content))
+
+    # Limpieza mínima segura
+    if "holiday_type" in df.columns:
+        df["holiday_type"] = df["holiday_type"].astype(str)
+    if "date" in df.columns:
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
     return df
 
 df = load_data()
 
-# Si tú ya tienes df cargado, puedes comentar lo de arriba y hacer:
-# df = TU_DATAFRAME
-
 if df.empty:
-    st.warning("⚠️ Tu DataFrame está vacío en este script. Reemplaza load_data() por tu carga real o asigna df.")
+    st.error("⚠️ El DataFrame está vacío tras cargar el parquet.")
     st.stop()
-
 # Asegurar tipos esperados
 if "date" in df.columns:
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
@@ -363,8 +355,3 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
-
-
-
-
-
