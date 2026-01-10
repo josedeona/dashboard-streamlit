@@ -38,7 +38,7 @@ def load_data():
     # ======================================================
 
     # ---------- Numéricos (usar float32 / Int16 reduce RAM) ----------
-    for col in ["sales", "onpromotion", "transactions"]:
+    for col in ["sales", "transactions"]:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors="coerce").astype("float32").fillna(0)
 
@@ -47,13 +47,14 @@ def load_data():
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     # ---------- Temporales ----------
-    for col in ["year", "month", "week"]:
+    for col in ["month"]:
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int16")
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int8")
 
     # ---------- Identificadores ----------
-    if "store_nbr" in df.columns:
-        df["store_nbr"] = pd.to_numeric(df["store_nbr"], errors="coerce").astype("Int16")
+    for col in ["store_nbr", "onpromotion", "year", "week"]:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("Int16")
 
     # ---------- Categóricas (MUY importante para memoria) ----------
     for col in ["state", "family"]:
@@ -219,7 +220,12 @@ with tab2:
     st.subheader("Análisis por tienda (store_nbr)")
 
     stores = sorted(df_f["store_nbr"].dropna().unique())
-    store_sel = st.selectbox("Selecciona una tienda", stores)
+    store_sel = st.selectbox(
+    "Selecciona una tienda",
+    stores,
+    index=0,
+    key="store_sel"
+)
 
     df_store = df_f[df_f["store_nbr"] == store_sel]
 
@@ -258,7 +264,12 @@ with tab3:
     st.subheader("Análisis por estado (state)")
 
     states = sorted(df_f["state"].dropna().unique())
-    state_sel = st.selectbox("Selecciona un estado", states)
+    state_sel = st.selectbox(
+    "Selecciona un estado",
+    states,
+    index=0,
+    key="state_sel"
+)
 
     df_state = df_f[df_f["state"] == state_sel]
 
@@ -407,6 +418,7 @@ with tab4:
     )
 
     st.plotly_chart(fig, width="stretch")
+
 
 
 
